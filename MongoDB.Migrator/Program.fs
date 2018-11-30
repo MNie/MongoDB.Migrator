@@ -9,8 +9,8 @@ module Database =
     open System
     open MongoDB.Driver
 
-    let client db =
-        let c = MongoClient("mongodb://localhost")
+    let client (con: string) db =
+        let c = MongoClient(con)
         c.GetDatabase db
         
     let options =
@@ -23,9 +23,10 @@ module Migrate =
     open MongoDB.Bson
     open MongoDB.Driver
 
-    let basedOn db collection field token =
-        let client = Database.client db
-        let collection = client.GetCollection<BsonDocument> collection
+    let basedOn inConnection outConnection db collection field token =
+        let inClient = Database.client inConnection db
+        let outClient = Database.client outConnection db
+        let collection = inClient.GetCollection<BsonDocument> collection
 
         async {
             let! r = collection.FindAsync(FilterDefinition.Empty, Database.options, token) |> Async.AwaitTask
@@ -35,7 +36,7 @@ module Migrate =
                 .ToDictionary((fun x -> x.Key.AsString), fun x -> x.ToList())
             |> Seq.iter (fun x -> 
                 Console.WriteLine (sprintf "Creating collection with name %s" x.Key)
-                let newClient = client.GetCollection<BsonDocument> (x.Key.ToLower())
+                let newClient = outClient.GetCollection<BsonDocument> (x.Key.ToLower())
                 async {
                     do! newClient.InsertManyAsync(x.Value) |> Async.AwaitTask
                 } |> Async.StartImmediate
@@ -45,8 +46,8 @@ module Migrate =
 module Delete =
     open MongoDB.Bson
 
-    let withName db name =
-        let client = Database.client db
+    let withName con db name =
+        let client = Database.client con db
         async {
             Console.WriteLine (sprintf "Deleting collection with name %s" name)
             do! client.DropCollectionAsync name |> Async.AwaitTask
@@ -54,14 +55,16 @@ module Delete =
 
 [<EntryPoint>]
 let main argv =
-    let action = argv.[0] //migrate
-    let db = argv.[1] //db
-    let name = argv.[2] //collection
-    let field = argv.[3] //documentType
+    let inConnection = argv.[0] //connection string to db from "mongodb://localhost"
+    let action = argv.[1] //migrate
+    let db = argv.[2] //db
+    let name = argv.[3] //collection
+    let field = argv.[4] //documentType
+    let outConnection = if (argv |> Array.length > 5) then argv.[5] else inConnection
 
     match action with
-    | "migrate" -> async { do! Migrate.basedOn db name field CancellationToken.None } |> Async.RunSynchronously
-    | "delete" -> async { do! Delete.withName db name } |> Async.RunSynchronously
+    | "migrate" -> async { do! Migrate.basedOn inConnection outConnection db name field CancellationToken.None } |> Async.RunSynchronously
+    | "delete" -> async { do! Delete.withName inConnection db name } |> Async.RunSynchronously
     | _ -> "invalid action" |> ArgumentException |> raise
 
     0
