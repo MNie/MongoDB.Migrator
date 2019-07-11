@@ -1,8 +1,20 @@
 # MongoDB.Migrator
-Small tool to separate existing one collection to multiple after Azure pricing revolution around mongodb
+Azure function which helps you migrate records from one colleciton to multiple ones after revolution in pricing in Azure CosmosDB.
 
 Usage:
 
-```cmd
-MongoDB.Migrator.exe inputConnectionString migrate db collection documentType outputConnectionString
+1. Deploy to AzureFunctions,
+2. Open Insomnia/Postman or other rest client,
+3. Run query [POST]
 ```
+{
+	"db": "databaseName",
+	"action": "migrate",
+	"in": "migrateFromConnectionString",
+	"out": "migrateToConnectionString",
+	"collection": "newCollectionName (typename)",
+	"oldCollection": "oldSharedCollection",
+	"letterSize": "namingConvention (starting from small or big letter)"
+}
+```
+4. Smile because of better separation of collections.
