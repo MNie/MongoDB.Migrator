@@ -1,10 +1,11 @@
 module Delete
-    open System
+    open Domain
+    open Microsoft.Extensions.Logging
 
-    let withName con db name =
-        let client = Database.client con db
+    let withName (req: MigrationRequest) (log: ILogger) =
+        let client = Database.client req.``in`` req.db
         async {
-            Console.WriteLine (sprintf "Deleting collection with name %s" name)
-            do! client.DropCollectionAsync name |> Async.AwaitTask
+            do log.LogInformation (sprintf "Deleting collection with name %s" req.collection)
+            do! client.DropCollectionAsync req.collection |> Async.AwaitTask
             return Ok true
         }  

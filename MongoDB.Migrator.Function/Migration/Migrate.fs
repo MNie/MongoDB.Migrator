@@ -3,20 +3,23 @@ module Migrate
     open MongoDB.Driver
     open System
     open System.Linq
-    open DTO
+    open Microsoft.Extensions.Logging
+    open Domain
 
-    let basedOn inConnection outConnection db collection field letterSize token =
-        let inClient = Database.client inConnection db
-        let outClient = Database.client outConnection db
-        let collection = inClient.GetCollection<BsonDocument> collection
+    let basedOn req (log: ILogger) token =
+        let db = req.db
+        let field = req.collection 
+        let inClient = Database.client req.``in`` db
+        let outClient = Database.client req.out db
+        let collection = inClient.GetCollection<BsonDocument> req.oldCollection
 
         let filter = 
-            match letterSize with
+            match req.letterSize with
             | LetterSize.Big -> BsonDocument.Parse(sprintf "{'Environment': 'prd', 'TypeName': '%s'}" field)
             | LetterSize.Small -> BsonDocument.Parse(sprintf "{'environment': 'prd', 'typeName': '%s'}" field)
 
         let group =
-            match letterSize with
+            match req.letterSize with
             | LetterSize.Big -> "TypeName"
             | LetterSize.Small -> "typeName"
 
@@ -40,29 +43,28 @@ module Migrate
                         match! tryGetData (i) with 
                         | Choice1Of2 c -> return c
                         | Choice2Of2 d -> 
-                            Console.WriteLine (sprintf "Something went wrong when fething data with following parameters %A %A and error: %A" skip how d)
+                            log.LogError (sprintf "Something went wrong when fething data with following parameters %A %A and error: %A" skip how d)
                             return! materialized (i + 1)
                     }
                     
                 let! mat = materialized (0)
-                Console.WriteLine (sprintf "Currently processing data with following parameters %A %A" skip how)
+                log.LogInformation (sprintf "Currently processing data with following parameters %A %A" skip how)
                 mat
                 |> Seq.iter (fun x -> 
-                    Console.WriteLine (sprintf "Getting collection with name %s" x.Key)
+                    log.LogInformation (sprintf "Getting collection with name %s" x.Key)
                     let newClient = outClient.GetCollection<BsonDocument> (x.Key)
                     x.Value
                     |> Seq.split 300
                     |> Seq.iter (fun y -> 
                         async {
-                            Console.WriteLine("Waiting a second to insert something")
-                            do System.Threading.Thread.Sleep(1001)
+                            log.LogInformation ("Waiting a second to insert something")
+                            do! System.Threading.Tasks.Task.Delay (1001) |> Async.AwaitTask
                             try
-                                do Console.WriteLine (sprintf "insert records")
+                                do log.LogInformation (sprintf "insert records")
                                 do! newClient.InsertManyAsync(y, InsertManyOptions(), token) |> Async.AwaitTask
                             with
                                 | ex -> 
-                                    Console.WriteLine(sprintf "Something went wrong for collection with name: %s" x.Key)
-                                    Console.WriteLine(ex)
+                                    log.LogError ((sprintf "Something went wrong for collection with name: %s" x.Key), ex)
                         } |> Async.RunSynchronously
                     )
                 )

@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <AzureFunctionsVersion>v2</AzureFunctionsVersion>
@@ -6,6 +6,7 @@
   <ItemGroup>
     <Compile Include="Migration/Database.fs" />
     <Compile Include="Migration/DTO.fs" />
+    <Compile Include="Migration\Domain.fs" />
     <Compile Include="Migration/Delete.fs" />
     <Compile Include="Migration/Seq.fs" />
     <Compile Include="Migration/Migrate.fs" />
@@ -14,6 +15,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Sdk.Functions" Version="1.0.29" />
     <PackageReference Include="Microsoft.Azure.WebJobs.Extensions.Http" Version="3.0.2" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="2.2.0" />
     <PackageReference Include="Microsoft.Azure.WebJobs" Version="3.0.10" />
     <PackageReference Include="FSharp.Core" Version="4.6.2" />
     <PackageReference Include="MongoDB.Driver" Version="2.8.1" />

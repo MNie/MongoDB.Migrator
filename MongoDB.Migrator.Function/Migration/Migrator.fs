@@ -8,11 +8,13 @@ module MongoDB.Migrator.Function
     open System.Text
     open Newtonsoft.Json
     open DTO
+    open Domain
     open Microsoft.AspNetCore.Mvc
     open System.Threading
+    open Microsoft.Extensions.Logging
 
     [<FunctionName("Migrator")>]
-    let public run ([<HttpTrigger(AuthorizationLevel.Function, "post", Route = null)>] req : HttpRequest)  =
+    let public run ([<HttpTrigger(AuthorizationLevel.Function, "post", Route = null)>] req : HttpRequest, log: ILogger)  =
         async {
             use reader = new StreamReader(req.Body, Encoding.UTF8)
             let! body = reader.ReadToEndAsync() |> Async.AwaitTask
@@ -20,8 +22,8 @@ module MongoDB.Migrator.Function
             |> MigrationRequest.create
             |> fun x -> 
                 match x.action with
-                | Action.Migrate -> async { return! Migrate.basedOn x.``in`` x.out x.db x.oldCollection x.collection x.letterSize CancellationToken.None } |> Async.RunSynchronously
-                | Action.Delete -> async { return! Delete.withName x.``in`` x.db x.oldCollection } |> Async.RunSynchronously
+                | Action.Migrate -> async { return! Migrate.basedOn x log CancellationToken.None } |> Async.RunSynchronously
+                | Action.Delete -> async { return! Delete.withName x log } |> Async.RunSynchronously
             |> fun x ->
                 match x with
                 | Ok _ -> OkObjectResult () :> ObjectResult
